@@ -4,7 +4,7 @@ title: Email Settings
 
 ## Overview
 
-This documentation describes how to enable the email-related capabilities of Remark.
+This documentation describes how to enable the email-related capabilities of Remark42.
 
 - email authentication for users:
 
@@ -31,8 +31,11 @@ SMTP_INSECURE_SKIP_VERIFY
 SMTP_STARTTLS
 SMTP_USERNAME
 SMTP_PASSWORD
+SMTP_LOGIN_AUTH
 SMTP_TIMEOUT
 ```
+
+`SMTP_LOGIN_AUTH=true` makes Remark42 authenticate with the LOGIN mechanism instead of PLAIN, which some servers, such as Office 365 and Outlook.com, still require; it sends the credentials only over TLS or to localhost.
 
 ### SMTP_HELO_HOST
 
@@ -52,7 +55,7 @@ It applies to both paths that send mail: notification emails and the verificatio
 
 Here is the list of variables that affect user email notifications:
 
-```yaml
+```
 NOTIFY_USERS=email
 NOTIFY_EMAIL_FROM="Remark42 notifications"<notify@example.com>
 NOTIFY_EMAIL_VERIFICATION_SUBJ # "Email verification" by default
@@ -62,7 +65,7 @@ NOTIFY_EMAIL_VERIFICATION_SUBJ # "Email verification" by default
 
 Admin would receive a message for each new comment on your site. Here is the list of variables that affect them:
 
-```yaml
+```
 NOTIFY_ADMINS=email
 NOTIFY_EMAIL_FROM="Remark42 notifications"<notify@example.com>
 ADMIN_SHARED_EMAIL=admin@example.com
@@ -111,8 +114,7 @@ To use any of the containers below within the Remark42 environment, set the foll
 
 #### stevenolen/mailgun-smtp-server
 
-Here is the `docker-compose.yml` configuration part spinning up a container for
-[stevenolen/mailgun-smtp-server](https://hub.docker.com/r/stevenolen/mailgun-smtp-server):
+Here is the `docker-compose.yml` configuration part spinning up a container for [stevenolen/mailgun-smtp-server](https://hub.docker.com/r/stevenolen/mailgun-smtp-server):
 
 ```yaml
 mailgun:
@@ -135,8 +137,7 @@ Please note that this Docker image is unmaintained and Europe domain names are n
 
 #### fgribreau/smtp-to-sendgrid-gateway
 
-Here is the `docker-compose.yml` configuration part spinning up a container for
-[fgribreau/smtp-to-sendgrid-gateway](https://hub.docker.com/r/fgribreau/smtp-to-sendgrid-gateway):
+Here is the `docker-compose.yml` configuration part spinning up a container for [fgribreau/smtp-to-sendgrid-gateway](https://hub.docker.com/r/fgribreau/smtp-to-sendgrid-gateway):
 
 ```yaml
 sendgrid:
@@ -234,7 +235,7 @@ Now we have the following templates:
 - `email_unsubscribe.html.tmpl` – used for notification about successful unsubscribing from replies
 - `error_response.html.tmpl` – used for HTML errors
 
-To replace any template, add the file with the same name to the directory with the remark42 executable file. In case you run Remark42 inside Docker Compose, you can put customised templates into a directory like `customised_templates` and then mount it like that:
+To replace any template, add the file with the same name to the working directory of the remark42 process: `/srv` in the Docker image, or the `WorkingDirectory` of a systemd service. In case you run Remark42 inside Docker Compose, you can put customised templates into a directory like `customised_templates` and then mount it like that:
 
 ```yaml
 volumes:
@@ -250,7 +251,7 @@ The easiest way to test it is to mount `error_response.html.tmpl`, and then head
 
 ![Error_template](images/error_template.png)
 
-If the file is mounted correctly, the page will render the new file content immediately after hitting the refresh button in your browser once you change the file.
+If the file is mounted correctly, the page will render the new file content immediately after hitting the refresh button in your browser once you change the file. This holds for `error_response.html.tmpl` and `email_unsubscribe.html.tmpl`, which are read on every request. The three email templates are read once at start, so restart Remark42 after changing them.
 
 ### Template variables
 
@@ -264,12 +265,12 @@ Used for notifying users about replies to their comments and for admin notificat
 |----------|------|-------------|
 | `{{.UserName}}` | string | Comment author name |
 | `{{.UserPicture}}` | string | Comment author avatar URL |
-| `{{.CommentText}}` | string | Comment body (HTML) |
+| `{{.CommentText}}` | string | Comment body (HTML, with links and images removed) |
 | `{{.CommentLink}}` | string | Direct link to the comment |
 | `{{.CommentDate}}` | time.Time | Comment timestamp, format with `{{.CommentDate.Format "02.01.2006 at 15:04"}}` |
 | `{{.ParentUserName}}` | string | Parent comment author name |
 | `{{.ParentUserPicture}}` | string | Parent comment author avatar URL |
-| `{{.ParentCommentText}}` | string | Parent comment body (HTML) |
+| `{{.ParentCommentText}}` | string | Parent comment body (HTML, with links and images removed) |
 | `{{.ParentCommentLink}}` | string | Direct link to parent comment |
 | `{{.ParentCommentDate}}` | time.Time | Parent comment timestamp |
 | `{{.PostTitle}}` | string | Title of the post |
@@ -279,7 +280,7 @@ Used for notifying users about replies to their comments and for admin notificat
 
 #### `email_confirmation_subscription.html.tmpl` — subscription confirmation
 
-Sent when a user subscribes to email notifications for a comment thread.
+Sent when a user subscribes to email notifications about replies to their comments.
 
 | Variable | Type | Description |
 |----------|------|-------------|
@@ -287,7 +288,7 @@ Sent when a user subscribes to email notifications for a comment thread.
 | `{{.Token}}` | string | Confirmation token |
 | `{{.Email}}` | string | Recipient email address |
 | `{{.Site}}` | string | Site name |
-| `{{.SubscribeURL}}` | string | Subscription confirmation base URL |
+| `{{.SubscribeURL}}` | string | Reserved; always empty |
 
 #### `email_confirmation_login.html.tmpl` — login confirmation
 
@@ -299,6 +300,15 @@ Sent when a user logs in via email authentication.
 | `{{.Token}}` | string | Login token |
 | `{{.Site}}` | string | Site name |
 | `{{.Address}}` | string | Recipient address |
+
+#### `error_response.html.tmpl`
+
+Shown when the email unsubscribe page fails.
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `{{.Error}}` | string | Error message |
+| `{{.Details}}` | string | Description of the failure |
 
 ### Plain-text emails
 
