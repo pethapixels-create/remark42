@@ -1276,8 +1276,7 @@ func (s *ServerCommand) makeNotifyDestinations(authenticator *auth.Service) ([]n
 			From:                s.Notify.Email.From,
 			VerificationSubject: s.Notify.Email.VerificationSubject,
 			UnsubscribeURL:      s.RemarkURL + "/email/unsubscribe.html",
-			// TODO: uncomment after #560 frontend part is ready and URL is known
-			// subscribeURL:        s.RemarkURL + "/subscribe.html?token=",
+			SubscribeURL:        s.RemarkURL + "/email/subscribe.html?tkn=",
 			TokenGenFn: func(userID, email, site string) (string, error) {
 				claims := token.Claims{
 					Handshake: &token.Handshake{ID: userID + "::" + email},
